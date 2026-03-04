@@ -1,6 +1,6 @@
 # Topological Recurrence in EEG Dynamics
 ### Distinguishing REM Sleep from Wakefulness via Persistent Homology
-
+https://doi.org/10.5281/zenodo.18863540
 This repository contains the analysis code used in the study:
 
 **McMahon, E. – Topological Recurrence in EEG Dynamics: Distinguishing REM Sleep from Wakefulness via Persistent Homology**
