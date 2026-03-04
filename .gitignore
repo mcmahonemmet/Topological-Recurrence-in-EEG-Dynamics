@@ -1,0 +1,26 @@
+# Ignore dataset
+data/
+
+# Ignore generated outputs
+outputs/
+
+# Ignore raw EEG files
+*.edf
+
+# Ignore local configuration
+config.env
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# VS Code settings
+.vscode/
