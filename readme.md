@@ -10,9 +10,8 @@ The pipeline reconstructs single-channel EEG state-space dynamics with delay emb
 
 The entire analysis runs from a single command, `python run.py`, which
 orchestrates four stages: `pipeline.py` (core TDA + baselines + stats),
-`collate.py` (→ `results.xlsx`), `figures.py` (all figures), and the five
-standalone supplementary-analysis scripts (Stage 4 — see §4c). A sixth script,
-`refit_wake_robustness_stats.py`, is a recovery utility run only by hand.
+`collate.py` (→ `results.xlsx`), `figures.py` (all figures), and the six
+standalone supplementary-analysis scripts (Stage 4 — see §4c).
 
 ```
 sleep-edf-topological-recurrence/
@@ -26,7 +25,7 @@ sleep-edf-topological-recurrence/
 │   ├── sensitivity_power_analysis.py  # Stage 4 — power / MDE analysis (§4c)
 │   ├── supplementary_round3.py        # Stage 4 — diagnostic embedding, LOSO CIs, ICA, PE-order (§4c)
 │   ├── supplementary_round4.py        # Stage 4 — regime-specific AUCs, EOG-corrected band power (§4c)
-│   └── refit_wake_robustness_stats.py # utility — re-fit wake-robustness LMs (§4c)
+│   └── refit_wake_robustness_stats.py # Stage 4 — wake-robustness inner-LM re-fit (§4c)
 ├── config.env             # SLEEP_EDF_ROOT (relative path)
 ├── requirements.txt
 ├── install_packages.py
@@ -102,10 +101,10 @@ python run.py
 4. **Stage 1** — Run `scripts/pipeline.py` end-to-end, narrating each of its 29 steps
 5. **Stage 2** — Run `scripts/collate.py` to assemble `outputs/results.xlsx`
 6. **Stage 3** — Run `scripts/figures.py` to generate every figure into `outputs/figures/`
-7. **Stage 4** — Run the five standalone supplementary-analysis scripts in order
+7. **Stage 4** — Run the six standalone supplementary-analysis scripts in order
    (`demographics_breakdown.py` → `stratified_effects.py` →
    `sensitivity_power_analysis.py` → `supplementary_round3.py` →
-   `supplementary_round4.py`; see §4c)
+   `supplementary_round4.py` → `refit_wake_robustness_stats.py`; see §4c)
 8. Mirror everything to `outputs/logs/run_YYYYMMDD_HHMMSS.log`
 
 A complete run on a typical workstation takes a few hours wall-clock when
@@ -206,7 +205,7 @@ The corresponding figures are emitted by `figures.py` under the ids
 
 ## 4c. Stage 4 — standalone supplementary-analysis scripts
 
-Five scripts in `scripts/` were added at major-revision stage for the
+Six scripts in `scripts/` were added at major-revision stage for the
 demographic, lifespan, pharmacological, power, and supplementary robustness /
 sensitivity analyses. They depend on the main pipeline's output CSVs, so
 `run.py` runs them **automatically as Stage 4, after `pipeline.py`**, in the
@@ -231,6 +230,9 @@ python scripts/supplementary_round3.py --n-jobs 8
 
 # 5. Round-4 supplementary analyses (regime-specific AUCs, EOG-corrected band power)
 python scripts/supplementary_round4.py --n-jobs 8
+
+# 6. Wake-robustness inner-LM re-fit (idempotent; takes ~seconds, not the ~1.5 h TDA)
+python scripts/refit_wake_robustness_stats.py
 ```
 
 `demographics_breakdown.py` must run before `stratified_effects.py` and
@@ -238,10 +240,11 @@ python scripts/supplementary_round4.py --n-jobs 8
 `supplementary_round3.py` and `supplementary_round4.py` depend only on the
 pipeline's output CSVs and accept `--n-jobs`; `supplementary_round3.py`
 Section C re-processes raw EDFs for the ICA control.
-
-A sixth script, `refit_wake_robustness_stats.py`, is **not** part of Stage 4 —
-it is a recovery utility (see the last table row) and is only run by hand when
-needed.
+`refit_wake_robustness_stats.py` is LM-only (no per-night TDA), deterministic,
+and idempotent — running it on a successful pipeline rewrites the same two
+output CSVs with identical results, and it doubles as a defensive recovery
+against the rare statsmodels singular-matrix case seen on some Python /
+statsmodels combinations.
 
 | Script | Depends on | What it computes | Output(s) |
 | --- | --- | --- | --- |
@@ -250,7 +253,7 @@ needed.
 | `sensitivity_power_analysis.py` | `tda_epoch_features_all.csv` (pipeline), `demographics_per_night.csv` | Sensitivity power analysis for the headline contrast across six cohort specifications: observed paired-t d_z, minimum detectable effect at 80% power (α = 0.05), and a power-vs-effect-size grid | `sensitivity_power_analysis.csv`, `sensitivity_power_curves.csv`, `figures/sensitivity_power_curves.png` |
 | `supplementary_round3.py` | `tda_epoch_features_all.csv`, `baseline_epoch_features_all.csv`, `tda_epoch_features_wake_subclasses.csv` (pipeline); raw EDFs for the ICA section | Four round-3 supplementary analyses: diagnostic-favoured embedding cell (AMI τ = 11), LOSO classification bootstrap CIs + paired-bootstrap ΔAUC, ICA-based ocular-artefact sensitivity on Pz–Oz, and permutation-entropy order sweep (orders 3–6) | `supp_a_diagnostic_embedding_*.csv`, `supp_b_loso_*.csv`, `supp_c_ica_pz_oz_*.csv`, `supp_d_pe_order_*.csv`, plus ROC / K0-distribution figures |
 | `supplementary_round4.py` | `tda_epoch_features_all.csv`, `baseline_epoch_features_all.csv`, `wake_epoch_subclasses.csv`, `corrected_epochs/*.npz` (pipeline) | Two round-4 supplementary analyses: regime-specific LOSO AUCs (REM vs quiet wake, REM vs active-ocular wake) with bootstrap CIs, and EOG-regressed band-power LOSO control | `supp_d_regime_*.csv`, `supp_d_corrected_bandpower_*.csv`, plus regime ROC figures |
-| `refit_wake_robustness_stats.py` | `wake_subclass_robustness_grid.csv` (pipeline) | **Recovery utility.** Re-fits the `wake_subclass_robustness` inner mixed-LMs from the existing grid CSV without re-running the ~1.5 h per-night TDA. Use only if `step_wake_subclass_robustness` wrote its grid CSV but the inner LM fits failed. | `wake_subclass_robustness_mixedlm_omnibus.csv`, `wake_subclass_robustness_planned_contrasts.csv` |
+| `refit_wake_robustness_stats.py` | `wake_subclass_robustness_grid.csv` (pipeline) | Re-fits the `wake_subclass_robustness` inner mixed-LMs from the existing grid CSV without re-running the ~1.5 h per-night TDA — Powell-first optimiser, deterministic and idempotent. Runs as the final Stage 4 step; also doubles as a defensive recovery against the rare statsmodels singular-matrix case seen on some Python combinations. | `wake_subclass_robustness_mixedlm_omnibus.csv`, `wake_subclass_robustness_planned_contrasts.csv` |
 
 The three analysis scripts each accept `--force` (recompute) and `--no-figure`
 (skip the PNG); `stratified_effects.py` additionally accepts `--age-bins` and

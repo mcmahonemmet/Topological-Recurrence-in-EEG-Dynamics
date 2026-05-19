@@ -14,13 +14,13 @@ Top-level entry point. From a shell at the project root:
     python run.py --only-extras      # rebuild the standalone analyses only
 
 The script runs four stages end-to-end: (1) scripts/pipeline.py, (2)
-scripts/collate.py, (3) scripts/figures.py, and (4) the five standalone
+scripts/collate.py, (3) scripts/figures.py, and (4) the six standalone
 supplementary-analysis scripts (demographics_breakdown.py,
 stratified_effects.py, sensitivity_power_analysis.py, supplementary_round3.py,
-supplementary_round4.py). It narrates each stage as it runs, mirrors all
-output to a master log under ``outputs/logs/``, and saves outputs
-incrementally so a crash mid-run never costs you completed work — just rerun
-the same command.
+supplementary_round4.py, refit_wake_robustness_stats.py). It narrates each
+stage as it runs, mirrors all output to a master log under
+``outputs/logs/``, and saves outputs incrementally so a crash mid-run never
+costs you completed work — just rerun the same command.
 """
 
 from __future__ import annotations
@@ -261,50 +261,55 @@ def run_figures(log: Log) -> int:
 
 
 def run_extras(n_jobs: int, force: bool, log: Log) -> int:
-    """Stage 4: the five standalone supplementary-analysis scripts.
+    """Stage 4: the six standalone supplementary-analysis scripts.
 
     These are not part of pipeline.py because they depend on its output CSVs.
     Order matters for the first three — stratified_effects.py and
     sensitivity_power_analysis.py both read demographics_per_night.csv, which
     demographics_breakdown.py produces. supplementary_round3.py and
     supplementary_round4.py depend only on the pipeline's output CSVs (and,
-    for round-3 Section C, re-process raw EDFs for the ICA control), so they
-    run last.
+    for round-3 Section C, re-process raw EDFs for the ICA control).
+
+    refit_wake_robustness_stats.py runs last and re-fits the wake-robustness
+    inner mixed-LMs from the pipeline's existing grid CSV — fast (no per-night
+    TDA), deterministic, and idempotent. It doubles as a defensive recovery
+    against the rare singular-matrix case seen on some Python / statsmodels
+    combinations.
 
     supplementary_round3.py and supplementary_round4.py both accept --n-jobs
     and honour the same worker count as the pipeline.
-
-    The recovery utility refit_wake_robustness_stats.py is intentionally NOT
-    run here: it is only needed when the pipeline's wake_subclass_robustness
-    step wrote its grid CSV but the inner mixed-LM fits failed.
+    refit_wake_robustness_stats.py accepts no CLI flags.
     """
     log.banner("STAGE 4 / 4 — running standalone supplementary-analysis scripts")
-    log.write("Five standalone scripts that depend on the pipeline's output CSVs:")
-    log.write("  · demographics_breakdown.py      — cohort age / sex / drug-protocol tables")
-    log.write("  · stratified_effects.py          — REM-Wake K0 by lifespan × sex and by drug")
-    log.write("  · sensitivity_power_analysis.py  — observed d_z, minimum detectable effect")
-    log.write("  · supplementary_round3.py        — diagnostic embedding, LOSO CIs, ICA, PE-order")
-    log.write("  · supplementary_round4.py        — regime-specific AUCs, EOG-corrected band power")
+    log.write("Six standalone scripts that depend on the pipeline's output CSVs:")
+    log.write("  · demographics_breakdown.py        — cohort age / sex / drug-protocol tables")
+    log.write("  · stratified_effects.py            — REM-Wake K0 by lifespan × sex and by drug")
+    log.write("  · sensitivity_power_analysis.py    — observed d_z, minimum detectable effect")
+    log.write("  · supplementary_round3.py          — diagnostic embedding, LOSO CIs, ICA, PE-order")
+    log.write("  · supplementary_round4.py          — regime-specific AUCs, EOG-corrected band power")
+    log.write("  · refit_wake_robustness_stats.py   — wake-robustness inner-LM re-fit (idempotent)")
     log.write("")
     log.write("demographics_breakdown.py runs first: the next two read")
     log.write("demographics_per_night.csv, which it produces. supplementary_round3.py")
     log.write("Section C re-processes raw EDFs for the ICA control, so it (and")
     log.write("supplementary_round4.py) honour the same --n-jobs setting as the pipeline.")
+    log.write("refit_wake_robustness_stats.py runs last and is fast (LM-only, no per-night TDA).")
     log.write("")
-    # (script name, whether it accepts --n-jobs)
+    # (script name, accepts --n-jobs, accepts --force)
     extras = [
-        ("demographics_breakdown.py",     False),
-        ("stratified_effects.py",         False),
-        ("sensitivity_power_analysis.py", False),
-        ("supplementary_round3.py",       True),
-        ("supplementary_round4.py",       True),
+        ("demographics_breakdown.py",      False, True),
+        ("stratified_effects.py",          False, True),
+        ("sensitivity_power_analysis.py",  False, True),
+        ("supplementary_round3.py",        True,  True),
+        ("supplementary_round4.py",        True,  True),
+        ("refit_wake_robustness_stats.py", False, False),
     ]
-    for name, accepts_n_jobs in extras:
+    for name, accepts_n_jobs, accepts_force in extras:
         log.write(f"  → {name}")
         cmd = [sys.executable, "-u", str(SCRIPTS_DIR / name)]
         if accepts_n_jobs:
             cmd += ["--n-jobs", str(n_jobs)]
-        if force:
+        if accepts_force and force:
             cmd.append("--force")
         rc = stream_subprocess(cmd, log)
         if rc != 0:
@@ -427,6 +432,7 @@ def main(argv=None) -> int:
     log.write(f"  · stratified    : outputs/strat_*.csv")
     log.write(f"  · power         : outputs/sensitivity_power_*.csv")
     log.write(f"  · supplementary : outputs/supp_*.csv")
+    log.write(f"  · wake-robust   : outputs/wake_subclass_robustness_mixedlm_*.csv")
     log.write(f"  · log           : {log_path}")
     log.write(f"  · outputs/      : every intermediate CSV is preserved here")
     return 0
