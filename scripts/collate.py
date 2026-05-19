@@ -190,9 +190,19 @@ def _autosize(ws, df: pd.DataFrame, max_width: int = 60):
     except Exception:
         return
     for i, col in enumerate(df.columns, start=1):
-        series = df[col].astype(str)
-        width = min(max_width, max(len(str(col)) + 2, int(series.str.len().max() or 0) + 2))
-        ws.column_dimensions[get_column_letter(i)].width = width
+        try:
+            series = df[col].astype(str)
+            max_len = series.str.len().max()
+            # NaN-safe: an entirely-NaN column can yield NaN here on some
+            # pandas / Python combinations (Python 3.12 in particular), and
+            # int(NaN) raises "cannot convert float NaN to integer".
+            if pd.isna(max_len):
+                max_len = 0
+            width = min(max_width, max(len(str(col)) + 2, int(max_len) + 2))
+            ws.column_dimensions[get_column_letter(i)].width = width
+        except Exception:
+            # Auto-sizing is best-effort; never let it abort a sheet write.
+            continue
 
 
 def _write_readme(writer, available: List[Tuple[str, str, str, int]], n_missing: int):
