@@ -161,11 +161,12 @@ figure ids.
 
 ---
 
-## 4b. Revision-round analyses (added in response to reviewer comments)
+## 4b. Robustness, sensitivity, and predictive-validity analyses
 
-Nine additional steps were added to address reviewer comments at major-revision
-stage. They run after the headline analyses and reuse the same `RNG_SEED=0`,
-embedding parameters, mixed-LM specification, and Holm correction.
+Nine additional steps extend the headline analysis with robustness checks,
+sensitivity analyses, and out-of-subject predictive performance. They run
+after the headline analyses and reuse the same `RNG_SEED=0`, embedding
+parameters, mixed-LM specification, and Holm correction.
 
 | Step | What it computes | Output(s) |
 | --- | --- | --- |
@@ -186,17 +187,6 @@ python scripts/pipeline.py --only classification,bootstrap_contrasts
 python scripts/pipeline.py --only all_pairwise,cohort_replication
 ```
 
-These steps respond to:
-
-- **Editor #2** (REM specificity) → `all_pairwise` + `stage_monotonicity`
-- **Editor #3** / **Reviewer #3 #6** (predictive framing) → `classification`
-- **Editor #4** / **Reviewer #3 #2** (single-channel justification) → `main_tda_pz_oz`
-- **Editor #5** (epoch sub-sampling stability) → `subsampling_stability`
-- **Reviewer #1 #1, #5** (sample size, CIs, effect sizes) → `bootstrap_contrasts` + `diagnostics`
-- **Reviewer #1 #7** (replication) → `cohort_replication`
-- **Reviewer #3 #3** (preprocessing justification) → `preprocessing_sensitivity`
-- **Reviewer #3 #4** (embedding parameter justification) → `embedding_diagnostics`
-
 The corresponding figures are emitted by `figures.py` under the ids
 `all_pairwise`, `subsampling`, `bootstrap`, `embedding_diag`, `pz_oz`,
 `preproc_sensitivity`, `classification`, and `cohort_replication`.
@@ -205,11 +195,10 @@ The corresponding figures are emitted by `figures.py` under the ids
 
 ## 4c. Stage 4 — standalone supplementary-analysis scripts
 
-Six scripts in `scripts/` were added at major-revision stage for the
-demographic, lifespan, pharmacological, power, and supplementary robustness /
-sensitivity analyses. They depend on the main pipeline's output CSVs, so
-`run.py` runs them **automatically as Stage 4, after `pipeline.py`**, in the
-order below.
+Six scripts in `scripts/` cover the demographic, lifespan, pharmacological,
+power, and supplementary robustness / sensitivity analyses. They depend on
+the main pipeline's output CSVs, so `run.py` runs them **automatically as
+Stage 4, after `pipeline.py`**, in the order below.
 
 You only need the commands below if you want to run them standalone (e.g. to
 rebuild just these outputs, or after editing one) — or use
@@ -259,7 +248,7 @@ The three analysis scripts each accept `--force` (recompute) and `--no-figure`
 (skip the PNG); `stratified_effects.py` additionally accepts `--age-bins` and
 `--tel-policy`. None of the four is required to reproduce the headline result —
 they generate the demographic, lifespan, pharmacological, and power-analysis
-numbers reported in the manuscript's revision rounds.
+supplementary numbers reported in the manuscript.
 
 ---
 
@@ -286,14 +275,14 @@ All figures land in `outputs/figures/`. Available:
 | `k0_mean_sem` | `fig_k0tot_by_stage_mean_sem.png` | K0_tot bar chart with SEM |
 | `k0_subject_lines` | `fig_k0tot_by_stage_subject_lines.png` | Per-subject paired spaghetti |
 | `k0_rem_contrasts` | `fig_k0tot_rem_contrasts_subject_lines.png` | Two-panel REM contrasts |
-| `all_pairwise` | `all_pairwise_contrasts_heatmap.png` | All 10 pairwise stage contrasts on K0 (revision) |
-| `subsampling` | `subsampling_stability.png` | REM−W stability across cap sizes (revision) |
-| `bootstrap` | `bootstrap_contrast_cis.png` | Bootstrap 95% CIs on headline contrasts (revision) |
-| `embedding_diag` | `embedding_diagnostics.png` | AMI(τ) + FNN(m) curves justifying m=10, τ=2 (revision) |
-| `pz_oz` | `pz_oz_contrasts.png` | Fpz-Cz vs Pz-Oz multi-channel control (revision) |
-| `preproc_sensitivity` | `preprocessing_sensitivity.png` | REM−W across bandpass × sfreq grid (revision) |
-| `classification` | `classification_summary.png` | LOSO AUC for K0 / band power / combined (revision) |
-| `cohort_replication` | `cohort_replication.png` | Cassette vs Telemetry replication (revision) |
+| `all_pairwise` | `all_pairwise_contrasts_heatmap.png` | All 10 pairwise stage contrasts on K0 |
+| `subsampling` | `subsampling_stability.png` | REM−W stability across cap sizes |
+| `bootstrap` | `bootstrap_contrast_cis.png` | Bootstrap 95% CIs on headline contrasts |
+| `embedding_diag` | `embedding_diagnostics.png` | AMI(τ) + FNN(m) curves justifying m=10, τ=2 |
+| `pz_oz` | `pz_oz_contrasts.png` | Fpz-Cz vs Pz-Oz multi-channel control |
+| `preproc_sensitivity` | `preprocessing_sensitivity.png` | REM−W across bandpass × sfreq grid |
+| `classification` | `classification_summary.png` | LOSO AUC for K0 / band power / combined |
+| `cohort_replication` | `cohort_replication.png` | Cassette vs Telemetry replication |
 
 ---
 
